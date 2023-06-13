@@ -49,6 +49,12 @@ app.post('/urls/:id/delete', (req, res) => {
   res.redirect('/urls');
 });
 
+app.post('/urls/:id/update', (req, res) => {
+  urlDatabase[req.params.id] = req.body.newUrl;
+  res.redirect('/urls');
+
+});
+
 app.get('/', (req, res) => {
   res.send('Hello!');
 });
