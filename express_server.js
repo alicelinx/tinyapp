@@ -4,10 +4,21 @@ const PORT = 8080;
 
 app.set('view engine', 'ejs');
 
+function generateRandomString() {
+  let newId = '';
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  for (let i = 0; i <= 5; i++) {
+    newId += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return newId;
+}
+
 const urlDatabase = {
   'b2xVn2': 'http://www.lighthouselabs.ca',
   '9sm5xK': 'http://www.google.com'
 };
+
+app.use(express.urlencoded({ extended: true }));
 
 app.get('/urls', (req, res) => {
   const templateVars = { urls: urlDatabase };
@@ -21,6 +32,11 @@ app.get('/urls/new', (req, res) => {
 app.get('/urls/:id', (req, res) => {
   const templateVars = { id: req.params.id, longURL: urlDatabase[req.params.id] };
   res.render('urls_show', templateVars);
+});
+
+app.post('/urls', (req, res) => {
+  console.log(req.body);
+  res.send('Ok');
 });
 
 app.get('/', (req, res) => {
