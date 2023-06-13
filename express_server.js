@@ -13,7 +13,7 @@ function generateRandomString() {
   return newId;
 }
 
-const urlDatabase = {
+let urlDatabase = {
   'b2xVn2': 'http://www.lighthouselabs.ca',
   '9sm5xK': 'http://www.google.com'
 };
@@ -34,9 +34,15 @@ app.get('/urls/:id', (req, res) => {
   res.render('urls_show', templateVars);
 });
 
+app.get('/u/:id', (req, res) => {
+  const longURL = urlDatabase[req.params.id];
+  res.redirect(longURL);
+});
+
 app.post('/urls', (req, res) => {
-  console.log(req.body);
-  res.send('Ok');
+  let newUrlId = generateRandomString();
+  urlDatabase = Object.assign(urlDatabase, { [newUrlId]: req.body.longURL });
+  res.redirect(`/urls/${newUrlId}`);
 });
 
 app.get('/', (req, res) => {
