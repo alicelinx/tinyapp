@@ -97,9 +97,9 @@ app.get('/u/:id', (req, res) => {
   res.redirect(longURL);
 });
 
-app.post('/logout', (req, res) => {
+app.get('/logout', (req, res) => {
   res.clearCookie('user_id');
-  res.redirect('/urls');
+  res.redirect('/login');
 });
 
 app.post('/urls', (req, res) => {

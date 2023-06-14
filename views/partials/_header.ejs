@@ -18,11 +18,11 @@
         <a class="nav-item nav-link" href="/urls/new">Create New URL</a>
         <% if (!user) { %>
           <a class="nav-item nav-link" href="/login">Login</a>
+          <a class="nav-item nav-link" href="/register">Register</a>
         <% } else { %>
           Logged in as: <%= user.email %>
           <a class="nav-item nav-link" href="/logout">Logout</a>
         <% } %>
-        <a class="nav-item nav-link" href="/register">Register</a>
       </div>
     </div>
   </nav>
