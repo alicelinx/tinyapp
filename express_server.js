@@ -76,6 +76,14 @@ app.get('/register', (req, res) => {
 
 });
 
+app.get('/login', (req, res) => {
+  const templateVars = {
+    urls: urlDatabase,
+    user: users[req.cookies["user_id"]],
+  };
+  res.render('login', templateVars);
+});
+
 app.get('/urls/:id', (req, res) => {
   const templateVars = {
     id: req.params.id,
