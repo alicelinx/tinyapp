@@ -18,15 +18,27 @@ function generateRandomString() {
   return newId;
 }
 
+let foundUser = null;
 const findUserByEmail = function(email) {
-  let foundUser = null;
   for (const userID in users) {
     const user = users[userID];
     if (user.email === email) {
       foundUser = user;
     }
   }
+  if (foundUser) {
+    return true;
+  }
+};
 
+const findUserByPassword = function(password) {
+  let foundUser = null;
+  for (const userID in users) {
+    const user = users[userID];
+    if (user.password === password) {
+      foundUser = user;
+    }
+  }
   if (foundUser) {
     return true;
   }
@@ -121,8 +133,22 @@ app.post('/urls/:id/update', (req, res) => {
 });
 
 app.post('/login', (req, res) => {
-  const randomUserID = generateRandomString();
-  res.cookie('user_id', randomUserID);
+
+  const email = req.body.email;
+  const password = req.body.password;
+
+  if (!email || !password) {
+    return res.status(400).send('Please enter email address/password');
+  }
+
+  if (!findUserByEmail(email)) {
+    return res.status(403).send('The email address is not registered');
+  }
+  if (foundUser.password !== password) {
+    return res.status(403).send('Wrong password');
+  }
+
+  res.cookie('user_id', foundUser.id);
   res.redirect('/urls');
 });
 
