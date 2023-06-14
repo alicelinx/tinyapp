@@ -22,25 +22,23 @@
     <%- include('partials/_header') %>
 
     <main style="margin: 1em;">
-      <h3>Register for an account</h3>
-      <form class="form-inline" action="/register" method="POST">
-          <label for="email">Email address:</label><br>
+      <h3>Create account</h3>
+      <form action="/register" method="POST">
+          <label for="email">Email address</label><br>
           <input
-            class="form-control"
             type="email"
             name="email"
-            placeholder="Enter email address"
-            style="width: 300px; margin: 1em"
+            placeholder="Enter email"
+            style="width: 300px; margin-bottom: 20px"
           /><br>
-          <label for="password">Password:</label>
+          <label for="password">Password</label><br>
           <input
-            class="form-control"
             type="password"
             name="password"
-            placeholder="Enter password"
-            style="width: 300px; margin: 1em"
-          />
-          <button type="submit" class="btn btn-primary">Submit</button>
+            placeholder="Password"
+            style="width: 300px; margin-bottom: 20px"
+          /><br>
+          <button type="submit" class="btn btn-primary">Register</button>
       </form>
     </main>
     <!-- Bootstrap JS -->
