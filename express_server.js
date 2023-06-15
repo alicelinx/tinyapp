@@ -2,6 +2,7 @@ const express = require('express');
 const cookieSession = require('cookie-session');
 const morgan = require('morgan');
 const bcrypt = require('bcryptjs');
+const helpers = require('./helpers');
 const app = express();
 const PORT = 8080;
 
@@ -18,17 +19,17 @@ function generateRandomString() {
   return Math.random().toString(36).substring(2, 8);
 }
 
-let foundUser = null;
-const findUserByEmail = function(email) {
-  for (const userID in users) {
-    const user = users[userID];
-    if (user.email === email) {
-      foundUser = user;
-    }
-  }
-  if (foundUser) {
-    return true;
-  }
+let users = {
+  N12m34: {
+    id: "N12m34",
+    email: "a@ca",
+    password: "$2a$10$KXD.WHYBXVctxitM9IZC..xYYaE9uE9FL1kAXhVmV4XqRu31zxeCK", // 1111
+  },
+  Ab34c2: {
+    id: "Ab34c2",
+    email: "b@ca",
+    password: "$2a$10$H.YsenE5/rWh0c.F9uVoIuHkxRpM/LrhEGQJRstyW1FSWw777sryO", // 1111
+  },
 };
 
 let newUrlDatabase = {
@@ -58,25 +59,13 @@ const urlsForUser = function(id) {
   return urls;
 };
 
-const users = {
-  N12m34: {
-    id: "N12m34",
-    email: "a@ca",
-    password: "$2a$10$KXD.WHYBXVctxitM9IZC..xYYaE9uE9FL1kAXhVmV4XqRu31zxeCK", // 1111
-  },
-  Ab34c2: {
-    id: "Ab34c2",
-    email: "b@ca",
-    password: "$2a$10$H.YsenE5/rWh0c.F9uVoIuHkxRpM/LrhEGQJRstyW1FSWw777sryO", // 1111
-  },
-};
 
 app.get('/urls', (req, res) => {
-  if (!foundUser) {
+  if (!users[req.session["user_id"]]) {
     return res.status(401).send('Please log in or register');
   }
 
-  const urls = urlsForUser(foundUser.id);
+  const urls = urlsForUser(users[req.session["user_id"]].id);
   const templateVars = {
     urls: urls,
     user: users[req.session["user_id"]]
@@ -87,7 +76,7 @@ app.get('/urls', (req, res) => {
 
 app.get('/urls/new', (req, res) => {
 
-  if (!foundUser) {
+  if (!req.session["user_id"]) {
     res.redirect('/login');
   }
 
@@ -99,19 +88,23 @@ app.get('/urls/new', (req, res) => {
 });
 
 app.get('/register', (req, res) => {
-  if (foundUser) {
+  // const id = generateRandomString();
+  // const newUser = { id, email: req.body.email, password: req.body.password };
+  // Object.assign(users, { [id]: newUser });
+
+  if (users[req.session["user_id"]]) {
     res.redirect('/urls');
   }
+
   const templateVars = {
     urls: newUrlDatabase,
     user: users[req.session["user_id"]]
   };
   res.render('register', templateVars);
-
 });
 
 app.get('/login', (req, res) => {
-  if (foundUser) {
+  if (users[req.session["user_id"]]) {
     res.redirect('/urls');
   }
   const templateVars = {
@@ -122,11 +115,11 @@ app.get('/login', (req, res) => {
 });
 
 app.get('/urls/:id', (req, res) => {
-  if (!foundUser) {
+  if (!users[req.session["user_id"]]) {
     return res.status(401).send('Please log in');
   }
 
-  const urls = urlsForUser(foundUser.id);
+  const urls = urlsForUser(users[req.session["user_id"]].id);
   if (urls === undefined) {
     return res.status(401).send('Unauthorized');
   }
@@ -149,20 +142,19 @@ app.get('/u/:id', (req, res) => {
 });
 
 app.get('/logout', (req, res) => {
-  foundUser = null;
   req.session = null;
   res.redirect('/login');
 });
 
 app.post('/urls', (req, res) => {
-  if (!foundUser) {
+  if (!users[req.session["user_id"]]) {
     return res.status(401).send('Please log in to shorten URLs\n');
   }
   let newUrlId = generateRandomString();
   newUrlDatabase = Object.assign(newUrlDatabase, {
     [newUrlId]: {
       longURL: req.body.longURL,
-      userID: foundUser.id
+      userID: users[req.session["user_id"]].id
     }
   });
   res.redirect(`/urls/${newUrlId}`);
@@ -175,11 +167,11 @@ app.post('/urls/:id/delete', (req, res) => {
     return res.status(404).send('ID not found\n');
   }
 
-  if (!foundUser) {
+  if (!req.session["user_id"]) {
     return res.status(401).send('Please log in or register\n');
   }
 
-  const urls = urlsForUser(foundUser.id);
+  const urls = urlsForUser(req.session["user_id"]);
   if (urls === undefined) {
     return res.status(401).send('Unauthorized\n');
   }
@@ -195,11 +187,11 @@ app.post('/urls/:id', (req, res) => {
     return res.status(404).send('ID not found\n');
   }
 
-  if (!foundUser) {
+  if (!req.session["user_id"]) {
     return res.status(401).send('Please log in or register\n');
   }
 
-  const urls = urlsForUser(foundUser.id);
+  const urls = urlsForUser(req.session["user_id"]);
   if (urls === undefined) {
     return res.status(401).send('Unauthorized\n');
   }
@@ -218,15 +210,16 @@ app.post('/login', (req, res) => {
     return res.status(400).send('Please enter email address/password');
   }
 
-  if (!findUserByEmail(email)) {
+  if (!helpers.getUserByEmail(email, users)) {
     return res.status(403).send('The email address is not registered');
   }
 
-  if (!bcrypt.compareSync(password, foundUser.password)) {
+  const user = helpers.getUserByEmail(email, users);
+  if (!bcrypt.compareSync(password, user.password)) {
     return res.status(403).send('Password not match');
   }
 
-  req.session.user_id = foundUser.id;
+  req.session.user_id = user.id;
   res.redirect('/urls');
 });
 
@@ -240,7 +233,7 @@ app.post('/register', (req, res) => {
     return res.status(400).send('Please enter email address/password');
   }
 
-  if (findUserByEmail(email)) {
+  if (helpers.getUserByEmail(email, users)) {
     return res.status(400).send('The email address has been registered');
   }
 
@@ -255,9 +248,8 @@ app.post('/register', (req, res) => {
 
   users[id] = newUser;
   console.log(users);
-  foundUser = newUser;
 
-  req.session.user_id = foundUser.id;
+  req.session.user_id = users[id].id;
   res.redirect('/urls');
 });
 
