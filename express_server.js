@@ -58,15 +58,22 @@ app.get('/urls', (req, res) => {
 });
 
 app.get('/urls/new', (req, res) => {
+
+  if (!foundUser) {
+    res.redirect('/login');
+  }
+
   const templateVars = {
     urls: urlDatabase,
     user: users[req.cookies["user_id"]]
-
   };
   res.render('urls_new', templateVars);
 });
 
 app.get('/register', (req, res) => {
+  if (foundUser) {
+    res.redirect('/urls');
+  }
   const templateVars = {
     urls: urlDatabase,
     user: users[req.cookies["user_id"]],
@@ -76,6 +83,9 @@ app.get('/register', (req, res) => {
 });
 
 app.get('/login', (req, res) => {
+  if (foundUser) {
+    res.redirect('/urls');
+  }
   const templateVars = {
     urls: urlDatabase,
     user: users[req.cookies["user_id"]],
@@ -93,16 +103,23 @@ app.get('/urls/:id', (req, res) => {
 });
 
 app.get('/u/:id', (req, res) => {
+  if (!urlDatabase[req.params.id]) {
+    return res.status(404).send('Shortened URL not found\n');
+  }
   const longURL = urlDatabase[req.params.id];
   res.redirect(longURL);
 });
 
 app.get('/logout', (req, res) => {
+  foundUser = null;
   res.clearCookie('user_id');
   res.redirect('/login');
 });
 
 app.post('/urls', (req, res) => {
+  if (!foundUser) {
+    return res.status(401).send('Please log in to shorten URLs\n');
+  }
   let newUrlId = generateRandomString();
   urlDatabase = Object.assign(urlDatabase, { [newUrlId]: req.body.longURL });
   res.redirect(`/urls/${newUrlId}`);
