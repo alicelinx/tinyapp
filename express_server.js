@@ -1,5 +1,5 @@
 const express = require('express');
-const cookieParser = require('cookie-parser');
+const cookieSession = require('cookie-session');
 const morgan = require('morgan');
 const bcrypt = require('bcryptjs');
 const app = express();
@@ -7,8 +7,12 @@ const PORT = 8080;
 
 app.set('view engine', 'ejs');
 app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
 app.use(morgan('dev'));
+app.use(cookieSession({
+  name: 'session',
+  keys: ['0dm1c', 'c91lo', 't23kf'],
+  maxAge: 24 * 60 * 60 * 1000
+}));
 
 function generateRandomString() {
   return Math.random().toString(36).substring(2, 8);
@@ -26,11 +30,6 @@ const findUserByEmail = function(email) {
     return true;
   }
 };
-
-// let urlDatabase = {
-//   'b2xVn2': 'http://www.lighthouselabs.ca',
-//   '9sm5xK': 'http://www.google.com'
-// };
 
 let newUrlDatabase = {
   'b2xVn2': {
@@ -56,20 +55,19 @@ const urlsForUser = function(id) {
       }
     }
   }
-
   return urls;
 };
 
 const users = {
   N12m34: {
     id: "N12m34",
-    email: "user@a.ca",
-    password: "1111",
+    email: "a@ca",
+    password: "$2a$10$KXD.WHYBXVctxitM9IZC..xYYaE9uE9FL1kAXhVmV4XqRu31zxeCK", // 1111
   },
   Ab34c2: {
     id: "Ab34c2",
-    email: "user@b.ca",
-    password: "2222",
+    email: "b@ca",
+    password: "$2a$10$H.YsenE5/rWh0c.F9uVoIuHkxRpM/LrhEGQJRstyW1FSWw777sryO", // 1111
   },
 };
 
@@ -81,7 +79,7 @@ app.get('/urls', (req, res) => {
   const urls = urlsForUser(foundUser.id);
   const templateVars = {
     urls: urls,
-    user: users[req.cookies["user_id"]]
+    user: users[req.session["user_id"]]
   };
   res.render('urls_index', templateVars);
 
@@ -95,7 +93,7 @@ app.get('/urls/new', (req, res) => {
 
   const templateVars = {
     urls: newUrlDatabase,
-    user: users[req.cookies["user_id"]]
+    user: users[req.session["user_id"]]
   };
   res.render('urls_new', templateVars);
 });
@@ -106,7 +104,7 @@ app.get('/register', (req, res) => {
   }
   const templateVars = {
     urls: newUrlDatabase,
-    user: users[req.cookies["user_id"]],
+    user: users[req.session["user_id"]]
   };
   res.render('register', templateVars);
 
@@ -118,7 +116,7 @@ app.get('/login', (req, res) => {
   }
   const templateVars = {
     urls: newUrlDatabase,
-    user: users[req.cookies["user_id"]],
+    user: users[req.session["user_id"]]
   };
   res.render('login', templateVars);
 });
@@ -129,9 +127,7 @@ app.get('/urls/:id', (req, res) => {
   }
 
   const urls = urlsForUser(foundUser.id);
-  // console.log(urls);
   if (urls === undefined) {
-    // console.log('unauthorized');
     return res.status(401).send('Unauthorized');
   }
 
@@ -139,7 +135,7 @@ app.get('/urls/:id', (req, res) => {
   const templateVars = {
     id: req.params.id,
     longURL: newUrlDatabase[req.params.id].longURL,
-    user: users[req.cookies["user_id"]]
+    user: users[req.session["user_id"]]
   };
   res.render('urls_show', templateVars);
 });
@@ -154,7 +150,7 @@ app.get('/u/:id', (req, res) => {
 
 app.get('/logout', (req, res) => {
   foundUser = null;
-  res.clearCookie('user_id');
+  req.session = null;
   res.redirect('/login');
 });
 
@@ -194,18 +190,15 @@ app.post('/urls/:id/delete', (req, res) => {
 
 app.post('/urls/:id', (req, res) => {
 
-  // id does not exist
   const urlID = newUrlDatabase[req.params.id];
   if (!urlID) {
     return res.status(404).send('ID not found\n');
   }
 
-  // user not logged in
   if (!foundUser) {
     return res.status(401).send('Please log in or register\n');
   }
 
-  // user logged in but do not own the URL
   const urls = urlsForUser(foundUser.id);
   if (urls === undefined) {
     return res.status(401).send('Unauthorized\n');
@@ -233,12 +226,12 @@ app.post('/login', (req, res) => {
     return res.status(403).send('Password not match');
   }
 
-  res.cookie('user_id', foundUser.id);
+  req.session.user_id = foundUser.id;
   res.redirect('/urls');
 });
 
 app.post('/register', (req, res) => {
-  // add email, password, id to users object
+
   const id = generateRandomString();
   const email = req.body.email;
   const password = req.body.password;
@@ -263,7 +256,8 @@ app.post('/register', (req, res) => {
   users[id] = newUser;
   console.log(users);
   foundUser = newUser;
-  res.cookie('user_id', id);
+
+  req.session.user_id = foundUser.id;
   res.redirect('/urls');
 });
 
