@@ -1,6 +1,7 @@
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
+const bcrypt = require('bcryptjs');
 const app = express();
 const PORT = 8080;
 
@@ -227,8 +228,9 @@ app.post('/login', (req, res) => {
   if (!findUserByEmail(email)) {
     return res.status(403).send('The email address is not registered');
   }
-  if (foundUser.password !== password) {
-    return res.status(403).send('Wrong password');
+
+  if (!bcrypt.compareSync(password, foundUser.password)) {
+    return res.status(403).send('Password not match');
   }
 
   res.cookie('user_id', foundUser.id);
@@ -249,11 +251,14 @@ app.post('/register', (req, res) => {
     return res.status(400).send('The email address has been registered');
   }
 
+  const salt = bcrypt.genSaltSync(10);
+  const hashedPassword = bcrypt.hashSync(password, salt);
   const newUser = {
     id: id,
     email: email,
-    password: password
+    password: hashedPassword
   };
+
 
   users[id] = newUser;
   console.log(users);
