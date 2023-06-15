@@ -10,12 +10,7 @@ app.use(cookieParser());
 app.use(morgan('dev'));
 
 function generateRandomString() {
-  let newId = '';
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  for (let i = 0; i <= 5; i++) {
-    newId += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return newId;
+  return Math.random().toString(36).substring(2, 8);
 }
 
 let foundUser = null;
@@ -31,9 +26,37 @@ const findUserByEmail = function(email) {
   }
 };
 
-let urlDatabase = {
-  'b2xVn2': 'http://www.lighthouselabs.ca',
-  '9sm5xK': 'http://www.google.com'
+// let urlDatabase = {
+//   'b2xVn2': 'http://www.lighthouselabs.ca',
+//   '9sm5xK': 'http://www.google.com'
+// };
+
+let newUrlDatabase = {
+  'b2xVn2': {
+    longURL: "http://www.lighthouselabs.ca",
+    userID: "N12m34",
+  },
+  '9sm5xK': {
+    longURL: "https://www.google.ca",
+    userID: "N12m34",
+  },
+};
+
+const urlsForUser = function(id) {
+  let urls;
+  const urlDatabaseKeys = Object.keys(newUrlDatabase);
+
+  for (const key of urlDatabaseKeys) {
+    if (id === newUrlDatabase[key].userID) {
+      if (urls === undefined) {
+        urls = { [key]: newUrlDatabase[key].longURL };
+      } else {
+        urls = Object.assign(urls, { [key]: newUrlDatabase[key].longURL });
+      }
+    }
+  }
+
+  return urls;
 };
 
 const users = {
@@ -50,11 +73,17 @@ const users = {
 };
 
 app.get('/urls', (req, res) => {
+  if (!foundUser) {
+    return res.status(401).send('Please log in or register');
+  }
+
+  const urls = urlsForUser(foundUser.id);
   const templateVars = {
-    urls: urlDatabase,
+    urls: urls,
     user: users[req.cookies["user_id"]]
   };
   res.render('urls_index', templateVars);
+
 });
 
 app.get('/urls/new', (req, res) => {
@@ -64,7 +93,7 @@ app.get('/urls/new', (req, res) => {
   }
 
   const templateVars = {
-    urls: urlDatabase,
+    urls: newUrlDatabase,
     user: users[req.cookies["user_id"]]
   };
   res.render('urls_new', templateVars);
@@ -75,7 +104,7 @@ app.get('/register', (req, res) => {
     res.redirect('/urls');
   }
   const templateVars = {
-    urls: urlDatabase,
+    urls: newUrlDatabase,
     user: users[req.cookies["user_id"]],
   };
   res.render('register', templateVars);
@@ -87,26 +116,38 @@ app.get('/login', (req, res) => {
     res.redirect('/urls');
   }
   const templateVars = {
-    urls: urlDatabase,
+    urls: newUrlDatabase,
     user: users[req.cookies["user_id"]],
   };
   res.render('login', templateVars);
 });
 
 app.get('/urls/:id', (req, res) => {
+  if (!foundUser) {
+    return res.status(401).send('Please log in');
+  }
+
+  const urls = urlsForUser(foundUser.id);
+  // console.log(urls);
+  if (urls === undefined) {
+    // console.log('unauthorized');
+    return res.status(401).send('Unauthorized');
+  }
+
+
   const templateVars = {
     id: req.params.id,
-    longURL: urlDatabase[req.params.id],
+    longURL: newUrlDatabase[req.params.id].longURL,
     user: users[req.cookies["user_id"]]
   };
   res.render('urls_show', templateVars);
 });
 
 app.get('/u/:id', (req, res) => {
-  if (!urlDatabase[req.params.id]) {
+  if (!newUrlDatabase[req.params.id]) {
     return res.status(404).send('Shortened URL not found\n');
   }
-  const longURL = urlDatabase[req.params.id];
+  const longURL = newUrlDatabase[req.params.id].longURL;
   res.redirect(longURL);
 });
 
@@ -121,17 +162,55 @@ app.post('/urls', (req, res) => {
     return res.status(401).send('Please log in to shorten URLs\n');
   }
   let newUrlId = generateRandomString();
-  urlDatabase = Object.assign(urlDatabase, { [newUrlId]: req.body.longURL });
+  newUrlDatabase = Object.assign(newUrlDatabase, {
+    [newUrlId]: {
+      longURL: req.body.longURL,
+      userID: foundUser.id
+    }
+  });
   res.redirect(`/urls/${newUrlId}`);
 });
 
 app.post('/urls/:id/delete', (req, res) => {
-  delete urlDatabase[req.params.id];
+
+  const urlID = newUrlDatabase[req.params.id];
+  if (!urlID) {
+    return res.status(404).send('ID not found\n');
+  }
+
+  if (!foundUser) {
+    return res.status(401).send('Please log in or register\n');
+  }
+
+  const urls = urlsForUser(foundUser.id);
+  if (urls === undefined) {
+    return res.status(401).send('Unauthorized\n');
+  }
+
+  delete newUrlDatabase[req.params.id];
   res.redirect('/urls');
 });
 
-app.post('/urls/:id/update', (req, res) => {
-  urlDatabase[req.params.id] = req.body.newUrl;
+app.post('/urls/:id', (req, res) => {
+
+  // id does not exist
+  const urlID = newUrlDatabase[req.params.id];
+  if (!urlID) {
+    return res.status(404).send('ID not found\n');
+  }
+
+  // user not logged in
+  if (!foundUser) {
+    return res.status(401).send('Please log in or register\n');
+  }
+
+  // user logged in but do not own the URL
+  const urls = urlsForUser(foundUser.id);
+  if (urls === undefined) {
+    return res.status(401).send('Unauthorized\n');
+  }
+
+  newUrlDatabase[req.params.id].longURL = req.body.newUrl;
   res.redirect('/urls');
 
 });
@@ -178,7 +257,7 @@ app.post('/register', (req, res) => {
 
   users[id] = newUser;
   console.log(users);
-
+  foundUser = newUser;
   res.cookie('user_id', id);
   res.redirect('/urls');
 });
