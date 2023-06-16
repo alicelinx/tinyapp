@@ -2,7 +2,7 @@ const express = require('express');
 const cookieSession = require('cookie-session');
 const morgan = require('morgan');
 const bcrypt = require('bcryptjs');
-const helpers = require('./helpers');
+const { getUserByEmail } = require('./helpers');
 const app = express();
 const PORT = 8080;
 
@@ -32,7 +32,7 @@ let users = {
   },
 };
 
-let newUrlDatabase = {
+let urlDatabase = {
   'b2xVn2': {
     longURL: "http://www.lighthouselabs.ca",
     userID: "N12m34",
@@ -45,13 +45,13 @@ let newUrlDatabase = {
 
 const urlsForUser = function(id) {
   let urls;
-  const urlDatabaseKeys = Object.keys(newUrlDatabase);
+  const urlDatabaseKeys = Object.keys(urlDatabase);
   for (const key of urlDatabaseKeys) {
-    if (id === newUrlDatabase[key].userID) {
+    if (id === urlDatabase[key].userID) {
       if (urls === undefined) {
-        urls = { [key]: newUrlDatabase[key].longURL };
+        urls = { [key]: urlDatabase[key].longURL };
       } else {
-        urls = Object.assign(urls, { [key]: newUrlDatabase[key].longURL });
+        urls = Object.assign(urls, { [key]: urlDatabase[key].longURL });
       }
     }
   }
@@ -78,7 +78,7 @@ app.get('/urls/new', (req, res) => {
   }
 
   const templateVars = {
-    urls: newUrlDatabase,
+    urls: urlDatabase,
     user: users[req.session["user_id"]]
   };
   res.render('urls_new', templateVars);
@@ -90,7 +90,7 @@ app.get('/register', (req, res) => {
   }
 
   const templateVars = {
-    urls: newUrlDatabase,
+    urls: urlDatabase,
     user: users[req.session["user_id"]]
   };
   res.render('register', templateVars);
@@ -102,7 +102,7 @@ app.get('/login', (req, res) => {
   }
 
   const templateVars = {
-    urls: newUrlDatabase,
+    urls: urlDatabase,
     user: users[req.session["user_id"]]
   };
   res.render('login', templateVars);
@@ -113,25 +113,29 @@ app.get('/urls/:id', (req, res) => {
     return res.status(401).send('Please log in');
   }
 
-  const urls = urlsForUser(users[req.session["user_id"]].id);
-  if (urls === undefined) {
+  const ownedUrls = urlsForUser(users[req.session["user_id"]].id);
+  if (!ownedUrls || !ownedUrls[req.params.id]) {
     return res.status(401).send('Unauthorized');
+  }
+
+  if (!urlDatabase[req.params.id]) {
+    return res.status(404).send('Shortened URL not found\n');
   }
 
   const templateVars = {
     id: req.params.id,
-    longURL: newUrlDatabase[req.params.id].longURL,
+    longURL: urlDatabase[req.params.id].longURL,
     user: users[req.session["user_id"]]
   };
   res.render('urls_show', templateVars);
 });
 
 app.get('/u/:id', (req, res) => {
-  if (!newUrlDatabase[req.params.id]) {
+  if (!urlDatabase[req.params.id]) {
     return res.status(404).send('Shortened URL not found\n');
   }
 
-  const longURL = newUrlDatabase[req.params.id].longURL;
+  const longURL = urlDatabase[req.params.id].longURL;
   res.redirect(longURL);
 });
 
@@ -146,7 +150,7 @@ app.post('/urls', (req, res) => {
   }
 
   let newUrlID = generateRandomString();
-  newUrlDatabase = Object.assign(newUrlDatabase, {
+  urlDatabase = Object.assign(urlDatabase, {
     [newUrlID]: {
       longURL: req.body.longURL,
       userID: users[req.session["user_id"]].id
@@ -156,13 +160,13 @@ app.post('/urls', (req, res) => {
 });
 
 app.post('/urls/:id/delete', (req, res) => {
-  const urlID = newUrlDatabase[req.params.id];
-  if (!urlID) {
-    return res.status(404).send('ID not found\n');
-  }
-
   if (!req.session["user_id"]) {
     return res.status(401).send('Please log in or register\n');
+  }
+
+  const urlID = urlDatabase[req.params.id];
+  if (!urlID) {
+    return res.status(404).send('ID not found\n');
   }
 
   const urls = urlsForUser(req.session["user_id"]);
@@ -170,12 +174,12 @@ app.post('/urls/:id/delete', (req, res) => {
     return res.status(401).send('Unauthorized\n');
   }
 
-  delete newUrlDatabase[req.params.id];
+  delete urlDatabase[req.params.id];
   res.redirect('/urls');
 });
 
 app.post('/urls/:id', (req, res) => {
-  const urlID = newUrlDatabase[req.params.id];
+  const urlID = urlDatabase[req.params.id];
   if (!urlID) {
     return res.status(404).send('ID not found\n');
   }
@@ -184,12 +188,12 @@ app.post('/urls/:id', (req, res) => {
     return res.status(401).send('Please log in or register\n');
   }
 
-  const urls = urlsForUser(req.session["user_id"]);
-  if (!urls) {
+  const ownedUrls = urlsForUser(req.session["user_id"]);
+  if (!ownedUrls || !ownedUrls[req.params.id]) {
     return res.status(401).send('Unauthorized\n');
   }
 
-  newUrlDatabase[req.params.id].longURL = req.body.newUrl;
+  urlDatabase[req.params.id].longURL = req.body.newUrl;
   res.redirect('/urls');
 });
 
@@ -201,11 +205,11 @@ app.post('/login', (req, res) => {
     return res.status(400).send('Please enter email address/password');
   }
 
-  if (!helpers.getUserByEmail(email, users)) {
+  if (!getUserByEmail(email, users)) {
     return res.status(403).send('The email address is not registered');
   }
 
-  const user = helpers.getUserByEmail(email, users);
+  const user = getUserByEmail(email, users);
   if (!bcrypt.compareSync(password, user.password)) {
     return res.status(403).send('Password not match');
   }
@@ -220,11 +224,11 @@ app.post('/register', (req, res) => {
   const password = req.body.password;
 
   if (!email || !password) {
-    return res.status(400).send('Please enter email address/password');
+    return res.status(400).send('Please enter email and password');
   }
 
-  if (helpers.getUserByEmail(email, users)) {
-    return res.status(400).send('The email address has been registered');
+  if (getUserByEmail(email, users)) {
+    return res.status(400).send('A user with that email already exists');
   }
 
   const salt = bcrypt.genSaltSync(10);
