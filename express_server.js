@@ -46,7 +46,6 @@ let newUrlDatabase = {
 const urlsForUser = function(id) {
   let urls;
   const urlDatabaseKeys = Object.keys(newUrlDatabase);
-
   for (const key of urlDatabaseKeys) {
     if (id === newUrlDatabase[key].userID) {
       if (urls === undefined) {
@@ -58,7 +57,6 @@ const urlsForUser = function(id) {
   }
   return urls;
 };
-
 
 app.get('/urls', (req, res) => {
   if (!users[req.session["user_id"]]) {
@@ -75,7 +73,6 @@ app.get('/urls', (req, res) => {
 });
 
 app.get('/urls/new', (req, res) => {
-
   if (!req.session["user_id"]) {
     res.redirect('/login');
   }
@@ -88,10 +85,6 @@ app.get('/urls/new', (req, res) => {
 });
 
 app.get('/register', (req, res) => {
-  // const id = generateRandomString();
-  // const newUser = { id, email: req.body.email, password: req.body.password };
-  // Object.assign(users, { [id]: newUser });
-
   if (users[req.session["user_id"]]) {
     res.redirect('/urls');
   }
@@ -107,6 +100,7 @@ app.get('/login', (req, res) => {
   if (users[req.session["user_id"]]) {
     res.redirect('/urls');
   }
+
   const templateVars = {
     urls: newUrlDatabase,
     user: users[req.session["user_id"]]
@@ -124,7 +118,6 @@ app.get('/urls/:id', (req, res) => {
     return res.status(401).send('Unauthorized');
   }
 
-
   const templateVars = {
     id: req.params.id,
     longURL: newUrlDatabase[req.params.id].longURL,
@@ -137,6 +130,7 @@ app.get('/u/:id', (req, res) => {
   if (!newUrlDatabase[req.params.id]) {
     return res.status(404).send('Shortened URL not found\n');
   }
+
   const longURL = newUrlDatabase[req.params.id].longURL;
   res.redirect(longURL);
 });
@@ -150,18 +144,18 @@ app.post('/urls', (req, res) => {
   if (!users[req.session["user_id"]]) {
     return res.status(401).send('Please log in to shorten URLs\n');
   }
-  let newUrlId = generateRandomString();
+
+  let newUrlID = generateRandomString();
   newUrlDatabase = Object.assign(newUrlDatabase, {
-    [newUrlId]: {
+    [newUrlID]: {
       longURL: req.body.longURL,
       userID: users[req.session["user_id"]].id
     }
   });
-  res.redirect(`/urls/${newUrlId}`);
+  res.redirect(`/urls/${newUrlID}`);
 });
 
 app.post('/urls/:id/delete', (req, res) => {
-
   const urlID = newUrlDatabase[req.params.id];
   if (!urlID) {
     return res.status(404).send('ID not found\n');
@@ -181,7 +175,6 @@ app.post('/urls/:id/delete', (req, res) => {
 });
 
 app.post('/urls/:id', (req, res) => {
-
   const urlID = newUrlDatabase[req.params.id];
   if (!urlID) {
     return res.status(404).send('ID not found\n');
@@ -192,17 +185,15 @@ app.post('/urls/:id', (req, res) => {
   }
 
   const urls = urlsForUser(req.session["user_id"]);
-  if (urls === undefined) {
+  if (!urls) {
     return res.status(401).send('Unauthorized\n');
   }
 
   newUrlDatabase[req.params.id].longURL = req.body.newUrl;
   res.redirect('/urls');
-
 });
 
 app.post('/login', (req, res) => {
-
   const email = req.body.email;
   const password = req.body.password;
 
@@ -224,7 +215,6 @@ app.post('/login', (req, res) => {
 });
 
 app.post('/register', (req, res) => {
-
   const id = generateRandomString();
   const email = req.body.email;
   const password = req.body.password;
@@ -244,25 +234,17 @@ app.post('/register', (req, res) => {
     email: email,
     password: hashedPassword
   };
-
-
   users[id] = newUser;
-  console.log(users);
 
   req.session.user_id = users[id].id;
   res.redirect('/urls');
 });
 
 app.get('/', (req, res) => {
-  res.send('Hello!');
-});
-
-app.get('/urls.json', (req, res) => {
-  res.json(urlDatabase);
-});
-
-app.get('/hello', (req, res) => {
-  res.send('<html><body>Hello <b>World</b></body></html>\n');
+  if (!users[req.session["user_id"]]) {
+    res.redirect('/login');
+  }
+  res.redirect('/urls');
 });
 
 app.listen(PORT, () => {

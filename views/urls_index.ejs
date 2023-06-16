@@ -23,10 +23,10 @@
     <table>
       <thead>
         <tr>
-          <th scope="col">Short URL ID</th>
+          <th scope="col">Short URL ID&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</th>
           <th scope="col">Long URL</th>
-          <th scope="col">Edit</th>
-          <th scope="col">Delete</th>
+          <th scope="col">&nbsp;&nbsp;Edit</th>
+          <th scope="col">&nbsp;&nbsp;Delete</th>
         </tr>
       </thead>
       <tbody>
@@ -34,7 +34,7 @@
           <tr>
             <td><%= id %></td>
             <td><%= urls[id] %></td>
-            <td><form method="GET" action="/urls/<%=id%>"><button type="submit">Edit</button></form></td>
+            <td><form method="GET" action="/urls/<%=id%>&nbsp;&nbsp;&nbsp;&nbsp;"><button type="submit">Edit</button></form></td>
             <td><form method="POST" action="/urls/<%=id%>/delete"><button type="submit">Delete</button></form></td>
           </tr>
           <% } %>
